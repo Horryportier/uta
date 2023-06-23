@@ -8,6 +8,7 @@ use crate::utils::print_help;
 pub enum Arg {
     Link(String),
     Seek(usize),
+    Volume(Option<f64>),
 
     HelpFlag,
 
@@ -51,6 +52,11 @@ impl ArgsManger {
                 "-l" | "--loop" => Arg::Loop,
                 "--loop_playlist"  => Arg::LoopPlaylist,
                 "--print" => Arg::Print,
+                "-v" | "--volume" => Arg::Volume(match args.get(i+1) { 
+                    None => None,
+                    Some(f) => Some(f.parse::<f64>().unwrap_or(50.))
+                }
+                                                     ),
                 "-s" | "-seek" =>   
                     Arg::Seek(args.get(i+1)
                         .unwrap_or(&"0".into())
@@ -79,7 +85,12 @@ impl ArgsManger {
             match arg {
                 Arg::Link(link) => player.data.url =  Some(link.into()),
                 Arg::HelpFlag => print_help(), 
-                Arg::Start => player.start()?,
+                Arg::Start => {
+                    player.start()?;
+                    if player.mpv.is_none() {
+                        player.mpv = Some(mpvipc::Mpv::connect("/tmp/mpvsocket").map_err(|e| Error::MpvError(e))?);
+                    }
+                },
                 Arg::Kill => player.kill()?,
                 Arg::Next => player.next()?,
                 Arg::Prev => player.prev()?,
@@ -89,6 +100,10 @@ impl ArgsManger {
                 Arg::Loop => player.loop_single()?,
                 Arg::LoopPlaylist => player.loop_playlist()?,
                 Arg::Rand => player.rand()?,
+                Arg::Volume(volume) => match volume {
+                 Some(volume) => player.volume(*volume)?,   
+                 None => player.get_volume()?,
+                }
                 _ => {}
             }
         }

@@ -14,7 +14,7 @@ static  TMPFILE: &str= "uta_tmp";
 pub struct  Player {
   pub data: Data,
   path: String,
-  mpv: Mpv,
+  pub mpv: Option<Mpv>,
 }
 
 #[derive(Serialize, Deserialize  ,SerializePartial, Debug)]
@@ -33,14 +33,22 @@ impl Player {
     /// path or youtube link
    pub fn new() -> Result<Player, mpvipc::Error>{
        let socket = "/tmp/mpvsocket";
+
        let def_args:Vec<String> = [
        "--no-terminal",
        "--ytdl-format=best",
        "--no-video",  "--volume=50",
        format!("--input-ipc-server={}", socket).as_str()].map(String::from).to_vec();
+
+       let mpv = match Mpv::connect(socket) {
+           Ok(mpv) => Some(mpv),
+           Err(_) => None,
+       };
+
        let data = Data {is_runing: false, log: false, 
            mpv_args: def_args ,previous_video: (), time: 0 ,url: None };
-       Ok(Player { data , path: socket.into(), mpv: Mpv::connect(socket)?})
+       
+       Ok(Player { data , path: socket.into(), mpv})
    } 
    pub fn save(&self) -> Result<(), Error> {
        let tmp_dir = temp_dir();
@@ -88,49 +96,60 @@ impl Player {
        Ok(())
    }
    pub fn next(&self) -> Result<(), Error>{
-       self.mpv.next().map_err(|e| Error::MpvError(e))?;
+       self.mpv.clone().unwrap().next().map_err(|e| Error::MpvError(e))?;
        Ok(())
    }
    pub fn prev(&self) -> Result<(), Error>{
-       self.mpv.prev().map_err(|e| Error::MpvError(e))?;
+       self.mpv.clone().unwrap().prev().map_err(|e| Error::MpvError(e))?;
        Ok(())
    }
 
    pub fn seek(&self,time: f64, opt: SeekOptions) -> Result<(), Error> {
-       self.mpv.seek(time, opt).map_err(|e| Error::MpvError(e))?;
+       self.mpv.clone().unwrap().seek(time, opt).map_err(|e| Error::MpvError(e))?;
        Ok(())
    }
 
    pub fn toggle(&self) -> Result<(), Error> {
-       self.mpv.toggle().map_err(|e| Error::MpvError(e))?;
+       self.mpv.clone().unwrap().toggle().map_err(|e| Error::MpvError(e))?;
        Ok(())
    }
 
    pub fn print(&self) -> Result<(), Error>{
-        let curr: f64 = self.mpv.get_property("playback-time").unwrap_or(0.).floor();
-        let len: f64 = self.mpv.get_property("duration").unwrap_or(100.).floor();
+        let curr: f64 = self.mpv.clone().unwrap().get_property("playback-time").unwrap_or(0.).floor();
+        let len: f64 = self.mpv.clone().unwrap().get_property("duration").unwrap_or(100.).floor();
         let procent =  ((curr/len)*100.).floor();
         let text = format!("{procent}/100% | {}",
-                           self.mpv.get_property::<String>("media-title").map_err(|e| Error::MpvError(e))?);
+                           self.mpv.clone().unwrap().get_property::<String>("media-title").map_err(|e| Error::MpvError(e))?);
         println!("{}", text);
         Ok(())
    }
 
    pub fn loop_single(&self) -> Result<(), Error> {
-        self.mpv.set_loop_file(mpvipc::Switch::Toggle).map_err(|e| Error::MpvError(e))?;
+        self.mpv.clone().unwrap().set_loop_file(mpvipc::Switch::Toggle).map_err(|e| Error::MpvError(e))?;
         Ok(())
    }
 
    pub fn loop_playlist(&self) -> Result<(), Error>{
-       self.mpv.set_loop_playlist(mpvipc::Switch::Toggle).map_err(|e| Error::MpvError(e))?;
+       self.mpv.clone().unwrap().set_loop_playlist(mpvipc::Switch::Toggle).map_err(|e| Error::MpvError(e))?;
        Ok(())
    }
 
    pub fn rand(&self) -> Result<(), Error>{
-       let count: usize = self.mpv.get_property("playlist-count").map_err(|e| Error::MpvError(e))?;
+       let count: usize = self.mpv.clone().unwrap().get_property("playlist-count").map_err(|e| Error::MpvError(e))?;
        let rng = rand::thread_rng().gen_range(1..count);
-       self.mpv.playlist_play_id(rng).map_err(|e| Error::MpvError(e))?;
+       self.mpv.clone().unwrap().playlist_play_id(rng).map_err(|e| Error::MpvError(e))?;
        Ok(())
    }
+
+   pub fn volume(&self, volume: f64) -> Result<(), Error> {
+       self.mpv.clone().unwrap().set_volume(volume, mpvipc::NumberChangeOptions::Absolute).map_err(|e| Error::MpvError(e))?;
+       Ok(())
+   }
+   pub fn get_volume(&self) -> Result<(), Error>{
+       let volume: f64 = self.mpv.clone().unwrap().get_property("volume").map_err(|e| Error::MpvError(e))?;
+       println!("{volume}");
+       Ok(())
+   }
+
 }
 
