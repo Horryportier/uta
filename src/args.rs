@@ -1,4 +1,7 @@
-use crate::{Error, utils::print_help, api::Player};
+
+use crate::{Error, api::Player};
+
+use crate::utils::print_help;
 
 
 #[derive(Debug)]
@@ -62,28 +65,40 @@ impl ArgsManger {
 
     pub fn  execute(&self) -> Result<(), Error>  {
 
-        let link = self.args.iter().find_map(|f| match f {
-            Arg::Link(link) => Some(link.clone()),
-            _ => Some("".into()),
-        });
 
-        if let None = link {
-           return Err( Error::ExecuteErr("no link specifived".into()));
+        let mut player: Player = Player::new().map_err(|e| Error::MpvError(e))?;
+
+        let res = player.load();
+        if let Err(err) = res {
+            warn!("{:?}", err)
         }
-        let player = Player::new(&link.unwrap());
+        
+        info!("Player =>{:?}", player);
 
         for arg in &self.args {
             match arg {
-                Arg::HelpFlag => {print_help();}, 
-                Arg::Start =>  { 
-                    println!("Start {:?}", player.start());} ,
-                Arg::Kill => {
-                    println!("Kill {:?}", player.kill());
-                },
+                Arg::Link(link) => player.data.url =  Some(link.into()),
+                Arg::HelpFlag => print_help(), 
+                Arg::Start => player.start()?,
+                Arg::Kill => player.kill()?,
+                Arg::Next => player.next()?,
+                Arg::Prev => player.prev()?,
+                Arg::Toogle => player.toggle()?,
+                Arg::Print => player.print()?,
+                Arg::Seek(dest) => player.seek(dest.to_string().parse::<f64>().unwrap_or(0.), mpvipc::SeekOptions::AbsolutePercent)?,
+                Arg::Loop => player.loop_single()?,
+                Arg::LoopPlaylist => player.loop_playlist()?,
+                Arg::Rand => player.rand()?,
                 _ => {}
             }
         }
+
+     let res = player.save();
+        if let Err(err) = res {
+            warn!("Failed to save {:?}", err)
+        }
         Ok(())
+
     }
 }
 
@@ -98,7 +113,7 @@ pub fn is_numeric(input: &str) -> bool {
 #[allow(dead_code)]
 fn is_valid_link(url: &str) -> bool {
     let s: Vec<&str> = url.split("/").collect();
-    println!("{:?}",s);
+    info!("{:?}",s);
     true
     
 }
