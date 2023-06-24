@@ -1,5 +1,10 @@
 # uta
 
+! warning 
+--print 
+-r | --rand 
+are not curently working 
+
 Simple mpv utiliy cil 
 
 # Instalation 

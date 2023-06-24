@@ -1,4 +1,5 @@
 
+use crate::api::is_runing;
 use crate::{Error, api::Player};
 
 use crate::utils::print_help;
@@ -71,8 +72,24 @@ impl ArgsManger {
 
     pub fn  execute(&self) -> Result<(), Error>  {
 
-
         let mut player: Player = Player::new().map_err(|e| Error::MpvError(e))?;
+
+         if !is_runing() {
+            let link = self.args.iter().find_map(|f| match f {
+            Arg::Link(link) => Some(link.clone()),
+            _ => Some("".into()),
+            });
+            match link {
+                None => Err(Error::ExecuteErr("no link ink args".into())),
+                Some(link) => {
+                        player.data.url = Some(link);
+                        player.start()?;
+                Ok(())
+                },
+            }?;
+         }
+
+
 
         let res = player.load();
         if let Err(err) = res {

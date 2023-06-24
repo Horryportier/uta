@@ -153,3 +153,15 @@ impl Player {
 
 }
 
+pub fn is_runing() -> bool{
+    let cmd = Command::new("pgrep").arg("mpv").output();
+    match  cmd {
+        Err(_) => false,
+        Ok(child) => {
+            if child.stdout.is_empty() {
+                return false;
+            } 
+            true
+        }
+    }
+}
