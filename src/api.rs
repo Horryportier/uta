@@ -115,11 +115,11 @@ impl Player {
    }
 
    pub fn print(&self) -> Result<(), Error>{
-        let curr: f64 = self.mpv.clone().unwrap().get_property("playback-time").unwrap_or(0.).floor();
-        let len: f64 = self.mpv.clone().unwrap().get_property("duration").unwrap_or(100.).floor();
+        let curr: f64 = self.mpv.as_ref().unwrap().get_property("playback-time").unwrap_or(0.).floor();
+        let len: f64 = self.mpv.as_ref().unwrap().get_property("duration").unwrap_or(100.).floor();
         let procent =  ((curr/len)*100.).floor();
         let text = format!("{procent}/100% | {}",
-                           self.mpv.clone().unwrap().get_property::<String>("media-title").map_err(|e| Error::MpvError(e))?);
+                           self.mpv.as_ref().unwrap().get_property::<String>("media-title").map_err(|e| Error::MpvError(e))?);
         println!("{}", text);
         Ok(())
    }
@@ -135,9 +135,9 @@ impl Player {
    }
 
    pub fn rand(&self) -> Result<(), Error>{
-       let count: usize = self.mpv.clone().unwrap().get_property("playlist-count").map_err(|e| Error::MpvError(e))?;
+       let count: usize = self.mpv.as_ref().unwrap().get_property("playlist-count").map_err(|e| Error::MpvError(e))?;
        let rng = rand::thread_rng().gen_range(1..count);
-       self.mpv.clone().unwrap().playlist_play_id(rng).map_err(|e| Error::MpvError(e))?;
+       self.mpv.as_ref().unwrap().playlist_play_id(rng).map_err(|e| Error::MpvError(e))?;
        Ok(())
    }
 

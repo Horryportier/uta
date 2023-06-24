@@ -89,8 +89,6 @@ impl ArgsManger {
             }?;
          }
 
-
-
         let res = player.load();
         if let Err(err) = res {
             warn!("{:?}", err)
