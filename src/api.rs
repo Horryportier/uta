@@ -85,7 +85,9 @@ impl Player {
             let cmd = Command::new("mpv").args(&self.data.mpv_args).arg(url).spawn().map_err(|e| Error::IoErr(e))?;
             info!("start cmd {:?}", cmd);
            }
-           None =>  panic!("pls pass url as the first argument")
+           None =>  {
+               return  Err(Error::ExecuteErr("url is empty".into()));
+           }
        }
       Ok(())
    }
@@ -165,3 +167,21 @@ pub fn is_runing() -> bool{
         }
     }
 }
+
+#[cfg(test)]
+mod test{
+    use  super::*;
+
+    #[test]
+    fn test_runing() {
+        let res = is_runing();
+        assert_eq!(true, res)
+    }
+    #[test]
+    fn test_not_runing() {
+        let res = is_runing();
+        assert_eq!(false, res)
+    }
+}
+
+    
