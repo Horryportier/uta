@@ -8,6 +8,7 @@ extern crate log;
 mod api;
 mod args;
 mod utils;
+mod env;
 
 #[derive(Debug)]
 pub enum Error {

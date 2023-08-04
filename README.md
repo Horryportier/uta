@@ -36,8 +36,11 @@ uta [link to youtbe vido/playlist or path to folder/file] --start
 "--loop_playlist"  => loop playlist
 "--print" =>  prinst  in format [0/100% | video title]
 "-s" | "-seek" =>  jump to moment in video by procentage 0..100
-```
 
+```
+## env variable
+- `UTA_VOLUME=50` set default volume 
+- `UTA_VIDEO=true` if set to `true` mpv will lunch with video. when not set will default to `false` 
 # Tmux embading 
 
 ```bash
