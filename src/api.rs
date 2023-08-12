@@ -11,7 +11,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_partial::SerializePartial;
 
-use crate::{Error, env::get_env_mpv_args};
+use crate::{env::get_env_mpv_args, Error};
 
 static TMPFILE: &str = "uta_tmp";
 
@@ -33,14 +33,10 @@ pub struct Data {
     pub time: usize,
 }
 
-
-
-
 impl Player {
     /// path or youtube link
     pub fn new() -> Result<Player, mpvipc::Error> {
         let socket = "/tmp/mpvsocket";
-
 
         let mut def_args: Vec<String> = [
             "--no-terminal",
@@ -228,7 +224,8 @@ impl Player {
         Ok(())
     }
 
-    pub fn volume(&self, volume: f64) -> Result<(), Error> {
+    pub fn volume(&self, mut volume: f64) -> Result<(), Error> {
+        volume = volume.clamp(0., 100.);
         self.mpv
             .clone()
             .unwrap()
@@ -246,6 +243,37 @@ impl Player {
         println!("{volume}");
         Ok(())
     }
+
+    pub fn downland(&self, opt_url: Option<&str>) -> Result<(), Error> {
+        let mut url = self
+            .mpv
+            .clone()
+            .unwrap()
+            .get_property_string("filename")
+            .map_err(|e| Error::MpvError(e))?;
+
+        match  opt_url  {
+            None => {}
+            Some(u) => url = u.into()
+        }
+        let yt_dlp_args = match option_env!("UTA_DOWNLAND") {
+            None => "",
+            Some(a) => a,
+        };
+
+        let mut args = yt_dlp_args.split(" ").collect::<Vec<_>>();
+        let full_url = format!("youtube.com/{url}");
+        args.push(&full_url);
+        println!("{full_url}");
+        let cmd = Command::new("yt-dlp")
+            .args(args)
+            .arg(url)
+            .spawn()
+            .map_err(|e| Error::IoErr(e))?;
+
+        info!("start cmd {:?}", cmd);
+        Ok(())
+    }
 }
 
 pub fn is_runing() -> bool {
@@ -260,7 +288,6 @@ pub fn is_runing() -> bool {
         }
     }
 }
-
 
 #[cfg(test)]
 mod test {

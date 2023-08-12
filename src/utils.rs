@@ -18,9 +18,10 @@ uta [link to youtbe vido/playlist or path to folder/file] --start
 "-t" | "--toogle" => pause/unpause
 "-r" | "--rand" => play random entry in play list
 "-l" | "--loop" => loop single video 
-"--loop_playlist"  => loop playlist
+"-lp" | "--loop_playlist"  => loop playlist
 "--print" =>  prinst  in format [0/100% | video title]
 "-s" | "-seek" =>  jump to moment in video by procentage 0..100 
+"-d" => dowland currently plaing song or pass url to downland 
 "#;
 
     println!("{text}")

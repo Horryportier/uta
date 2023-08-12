@@ -19,6 +19,7 @@ pub enum Arg {
     LoopPlaylist,
     Loop,
     Rand,
+    Downland,
 
     Print,
 
@@ -48,7 +49,8 @@ impl ArgsManger {
                 "-t" | "--toogle" => Arg::Toogle,
                 "-r" | "--rand" => Arg::Rand,
                 "-l" | "--loop" => Arg::Loop,
-                "--loop_playlist" => Arg::LoopPlaylist,
+                "-lp" | "--loop_playlist" => Arg::LoopPlaylist,
+                "-d"  => Arg::Downland,
                 "--print" => Arg::Print,
                 "-v" | "--volume" => Arg::Volume(match args.get(i + 1) {
                     None => None,
@@ -80,11 +82,6 @@ impl ArgsManger {
                 None => Err(Error::ExecuteErr(
                     "no link ink args\n mvp is not runing so you need to provide url".into(),
                 )),
-                // Some(link) => {
-                //     player.data.url = Some(link);
-                //     player.start()?;
-                //     Ok(())
-                // }
                 Some(_) => Ok(())
             }?;
         }
@@ -96,7 +93,7 @@ impl ArgsManger {
 
         info!("Player =>{:?}", player);
 
-        for arg in &self.args {
+        for (i,arg) in self.args.iter().enumerate() {
             match arg {
                 Arg::Link(link) => player.data.url = Some(link.into()),
                 Arg::HelpFlag => print_help(),
@@ -124,6 +121,16 @@ impl ArgsManger {
                 Arg::Volume(volume) => match volume {
                     Some(volume) => player.volume(*volume)?,
                     None => player.get_volume()?,
+                },
+                Arg::Downland => {
+                    let url: Option<&str> = match self.args.get(i+1) {
+                        None => None,
+                        Some(a) => match  a {
+                            Arg::Link(l) => Some(l),
+                            _ => None
+                        }
+                    };
+                    player.downland(url)?;
                 },
                 _ => {}
             }
