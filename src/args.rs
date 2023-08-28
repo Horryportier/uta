@@ -67,12 +67,14 @@ impl Display for ArgsManger {
             "uta is an basic mpv music player".into(),
             "you can use your own local playlist or yt url".into(),
             "ENV:".into(),
-            "UTA_DOWNLAND args for yt-dlp".into(),
-            "UTA_LIST_FILE when set will read from file and give you optinos of playlist to start"
+            "UTA_DOWNLAND=downland_destination args for yt-dlp".into(),
+            "UTA_LIST_FILE=playlist_file_path when set will read from file and give you optinos of playlist to start"
                 .into(),
             "file has to be in format of".into(),
             "playlist1 URL1".into(),
             "playlist2 URL2".into(),
+            "`UTA_VOLUME=50` set default volume".into(),
+            "`UTA_VIDEO=true` if set to `true` mpv will lunch with video. when not set will default to `false`".into(),
             "ARGS:".into(),
         ];
 
