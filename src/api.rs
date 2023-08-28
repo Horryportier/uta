@@ -1,4 +1,4 @@
-use std::{fs, io::stdin, process::Command};
+use std::{fs, io::stdin, process::Command, sync::Mutex};
 
 use mpvipc::{Mpv, SeekOptions};
 use rand::Rng;
@@ -10,18 +10,13 @@ use crate::{env::get_env_mpv_args, Error};
 #[derive(Debug)]
 pub struct Player {
     pub data: Data,
-    pub mpv: Option<Mpv>,
+    pub mpv: Mutex<Option<Mpv>>,
 }
 
 #[derive(Serialize, Deserialize, SerializePartial, Debug)]
 pub struct Data {
-    pub is_runing: bool,
-    pub log: bool,
     pub mpv_args: Vec<String>,
     pub url: Option<String>,
-
-    pub previous_video: (),
-    pub time: usize,
 }
 
 impl Player {
@@ -37,18 +32,10 @@ impl Player {
         .to_vec();
 
         def_args.append(&mut get_env_mpv_args());
-
-        let mpv = match Mpv::connect(socket) {
-            Ok(mpv) => Some(mpv),
-            Err(_) => None,
-        };
+        let mpv = Mutex::new(mpvipc::Mpv::connect("/tmp/mpvsocket").ok());
 
         let data = Data {
-            is_runing: false,
-            log: false,
             mpv_args: def_args,
-            previous_video: (),
-            time: 0,
             url: None,
         };
 
@@ -73,58 +60,50 @@ impl Player {
         let cmd = Command::new("mpv")
             .args(&self.data.mpv_args)
             .arg(final_url)
-            .spawn()
-            .map_err(|e| Error::IoErr(e))?;
+            .spawn()?;
         info!("start cmd {:?}", cmd);
         Ok(())
     }
 
     pub fn kill(&self) -> Result<(), Error> {
-        let cmd = Command::new("pkill")
-            .arg("mpv")
-            .output()
-            .map_err(|e| Error::IoErr(e))?;
+        let cmd = Command::new("pkill").arg("mpv").output()?;
         info!("kill cmd {:?}", cmd);
         Ok(())
     }
     pub fn next(&self) -> Result<(), Error> {
-        self.mpv
-            .clone()
-            .unwrap()
-            .next()
-            .map_err(|e| Error::MpvError(e))?;
+        self.mpv.lock().unwrap().as_ref().unwrap().next()?;
         Ok(())
     }
     pub fn prev(&self) -> Result<(), Error> {
-        self.mpv
-            .clone()
-            .unwrap()
-            .prev()
-            .map_err(|e| Error::MpvError(e))?;
+        self.mpv.lock().unwrap().as_ref().unwrap().prev()?;
         Ok(())
     }
 
     pub fn seek(&self, time: f64, opt: SeekOptions) -> Result<(), Error> {
-        self.mpv
-            .clone()
-            .unwrap()
-            .seek(time, opt)
-            .map_err(|e| Error::MpvError(e))?;
+        self.mpv.lock().unwrap().as_ref().unwrap().seek(time, opt)?;
         Ok(())
     }
 
     pub fn toggle(&self) -> Result<(), Error> {
-        self.mpv
-            .clone()
-            .unwrap()
-            .toggle()
-            .map_err(|e| Error::MpvError(e))?;
+        self.mpv.lock().unwrap().as_ref().unwrap().toggle()?;
         Ok(())
+    }
+
+    pub fn is_paused(&self) -> Result<bool, Error> {
+        Ok(self
+            .mpv
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .get_property::<bool>("pause")?)
     }
 
     pub fn print(&self) -> Result<(), Error> {
         let curr: f64 = self
             .mpv
+            .lock()
+            .unwrap()
             .as_ref()
             .unwrap()
             .get_property("playback-time")
@@ -132,6 +111,8 @@ impl Player {
             .floor();
         let len: f64 = self
             .mpv
+            .lock()
+            .unwrap()
             .as_ref()
             .unwrap()
             .get_property("duration")
@@ -141,10 +122,11 @@ impl Player {
         let text = format!(
             "{procent}/100% | {}",
             self.mpv
+                .lock()
+                .unwrap()
                 .as_ref()
                 .unwrap()
-                .get_property::<String>("media-title")
-                .map_err(|e| Error::MpvError(e))?
+                .get_property::<String>("media-title")?
         );
         println!("{}", text);
         Ok(())
@@ -152,54 +134,60 @@ impl Player {
 
     pub fn loop_single(&self) -> Result<(), Error> {
         self.mpv
-            .clone()
+            .lock()
             .unwrap()
-            .set_loop_file(mpvipc::Switch::Toggle)
-            .map_err(|e| Error::MpvError(e))?;
+            .as_ref()
+            .unwrap()
+            .set_loop_file(mpvipc::Switch::Toggle)?;
         Ok(())
     }
 
     pub fn loop_playlist(&self) -> Result<(), Error> {
         self.mpv
-            .clone()
+            .lock()
             .unwrap()
-            .set_loop_playlist(mpvipc::Switch::Toggle)
-            .map_err(|e| Error::MpvError(e))?;
+            .as_ref()
+            .unwrap()
+            .set_loop_playlist(mpvipc::Switch::Toggle)?;
         Ok(())
     }
 
     pub fn rand(&self) -> Result<(), Error> {
         let count: usize = self
             .mpv
+            .lock()
+            .unwrap()
             .as_ref()
             .unwrap()
-            .get_property("playlist-count")
-            .map_err(|e| Error::MpvError(e))?;
+            .get_property("playlist-count")?;
         let rng = rand::thread_rng().gen_range(1..count);
         self.mpv
+            .lock()
+            .unwrap()
             .as_ref()
             .unwrap()
-            .playlist_play_id(rng)
-            .map_err(|e| Error::MpvError(e))?;
+            .playlist_play_id(rng)?;
         Ok(())
     }
 
     pub fn volume(&self, mut volume: f64) -> Result<(), Error> {
         volume = volume.clamp(0., 100.);
         self.mpv
-            .clone()
+            .lock()
             .unwrap()
-            .set_volume(volume, mpvipc::NumberChangeOptions::Absolute)
-            .map_err(|e| Error::MpvError(e))?;
+            .as_ref()
+            .unwrap()
+            .set_volume(volume, mpvipc::NumberChangeOptions::Absolute)?;
         Ok(())
     }
     pub fn get_volume(&self) -> Result<(), Error> {
         let volume: f64 = self
             .mpv
-            .clone()
+            .lock()
             .unwrap()
-            .get_property("volume")
-            .map_err(|e| Error::MpvError(e))?;
+            .as_ref()
+            .unwrap()
+            .get_property("volume")?;
         println!("{volume}");
         Ok(())
     }
@@ -207,15 +195,17 @@ impl Player {
     pub fn downland(&self, opt_url: Option<&str>) -> Result<(), Error> {
         let mut url = self
             .mpv
-            .clone()
+            .lock()
             .unwrap()
-            .get_property_string("filename")
-            .map_err(|e| Error::MpvError(e))?;
+            .as_ref()
+            .unwrap()
+            .get_property_string("filename")?;
 
         match opt_url {
             None => {}
             Some(u) => url = u.into(),
         }
+        // UTA_DOWNLAND args for yt-dlp 
         let yt_dlp_args = match option_env!("UTA_DOWNLAND") {
             None => "",
             Some(a) => a,
@@ -226,11 +216,7 @@ impl Player {
         args.push(&full_url);
         println!("{full_url}");
         println!("{:?}", args);
-        let cmd = Command::new("yt-dlp")
-            .args(args)
-            .arg(url)
-            .spawn()
-            .map_err(|e| Error::IoErr(e))?;
+        let cmd = Command::new("yt-dlp").args(args).arg(url).spawn()?;
 
         info!("start cmd {:?}", cmd);
         Ok(())
@@ -245,8 +231,8 @@ impl Player {
             return Ok(());
         }
 
-        let file = String::from_utf8(fs::read(list_file).map_err(|e| Error::IoErr(e))?)
-            .map_err(|e| Error::UtfErr(e))?;
+        let file = String::from_utf8(fs::read(list_file)?)?;
+
         let lines = file.split("\n").collect::<Vec<&str>>();
         let entiers = lines
             .iter()
@@ -271,11 +257,11 @@ impl Player {
             input_string.trim().parse::<usize>()
         };
 
-        let final_choice = choice().map_err(|e| Error::IntErr(e))?;
+        let final_choice = choice()?;
 
         let url = entiers.get(final_choice).unwrap().get(1).unwrap();
 
-        let p = self.clone();
+        let p = self;
 
         p.kill()?;
 
@@ -285,34 +271,5 @@ impl Player {
         p.start(Some(b))?;
 
         Ok(())
-    }
-}
-
-pub fn is_runing() -> bool {
-    let cmd = Command::new("pgrep").arg("mpv").output();
-    match cmd {
-        Err(_) => false,
-        Ok(child) => {
-            if child.stdout.is_empty() {
-                return false;
-            }
-            true
-        }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_runing() {
-        let res = is_runing();
-        assert_eq!(true, res)
-    }
-    #[test]
-    fn test_not_runing() {
-        let res = is_runing();
-        assert_eq!(false, res)
     }
 }
