@@ -177,8 +177,8 @@ impl ArgsManger {
                     println!(
                         "mpv is {}",
                         match player.is_paused()? {
-                            true => "runnig",
-                            false => "not runnig",
+                            false => "runnig",
+                            true => "not runnig",
                         }
                     )
                 }
@@ -208,8 +208,8 @@ impl ArgsManger {
                 Arg::Runnig => println!(
                     "mpv is {}",
                     match player.is_paused()? {
-                        true => "runnig",
-                        false => "not runnig",
+                        false => "runnig",
+                        true => "not runnig",
                     }
                 ),
                 Arg::Other(a) => println!("{} is an invalid argument\n use \"uta -h\" for help", a),
