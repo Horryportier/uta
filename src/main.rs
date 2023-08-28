@@ -1,4 +1,4 @@
-use std::{env::args, io};
+use std::{env::args, io, string::FromUtf8Error, num::ParseIntError};
 
 use args::ArgsManger;
 
@@ -16,6 +16,8 @@ pub enum Error {
     MpvError(mpvipc::Error),
     IoErr(io::Error),
     SerdeErr(serde_json::Error),
+    UtfErr(FromUtf8Error),
+    IntErr(ParseIntError)
 }
 
 fn main() {

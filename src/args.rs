@@ -86,11 +86,10 @@ impl ArgsManger {
             }?;
         }
 
-        let res = player.load();
-        if let Err(err) = res {
-            warn!("{:?}", err)
+        
+        if self.args.len() == 0 {
+            player.chose_from_list()?;
         }
-
         info!("Player =>{:?}", player);
 
         for (i,arg) in self.args.iter().enumerate() {
@@ -98,7 +97,7 @@ impl ArgsManger {
                 Arg::Link(link) => player.data.url = Some(link.into()),
                 Arg::HelpFlag => print_help(),
                 Arg::Start => {
-                    player.start()?;
+                    player.start(None)?;
                     if player.mpv.is_none() {
                         player.mpv = Some(
                             mpvipc::Mpv::connect("/tmp/mpvsocket")
@@ -136,10 +135,6 @@ impl ArgsManger {
             }
         }
 
-        let res = player.save();
-        if let Err(err) = res {
-            warn!("Failed to save {:?}", err)
-        }
         Ok(())
     }
 }
