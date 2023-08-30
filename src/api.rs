@@ -205,7 +205,7 @@ impl Player {
             None => {}
             Some(u) => url = u.into(),
         }
-        // UTA_DOWNLAND args for yt-dlp 
+        // UTA_DOWNLAND args for yt-dlp
         let yt_dlp_args = match option_env!("UTA_DOWNLAND") {
             None => "",
             Some(a) => a,
@@ -243,10 +243,10 @@ impl Player {
                     .collect::<Vec<String>>()
             })
             .collect::<Vec<Vec<String>>>();
-            entiers.pop();
+        entiers.pop();
         print!("choose: \n");
         for (i, v) in entiers.iter().enumerate() {
-            println!("[{i}] {}", *v.get(0).unwrap_or(&"".to_string()))
+            println!("[{}] {}", i + 1, *v.get(0).unwrap_or(&"".to_string()))
         }
 
         let choice = || -> Result<usize, std::num::ParseIntError> {
