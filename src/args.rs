@@ -145,7 +145,6 @@ impl ArgsManger {
 
     pub fn execute(&self) -> Result<(), Error> {
         let mut player: Player = Player::new()?;
-
         if self.args.len() == 0 {
             player.chose_from_list()?;
         }

@@ -234,7 +234,7 @@ impl Player {
         let file = String::from_utf8(fs::read(list_file)?)?;
 
         let lines = file.split("\n").collect::<Vec<&str>>();
-        let entiers = lines
+        let mut entiers = lines
             .iter()
             .map(|f| {
                 f.split(" ")
@@ -243,6 +243,8 @@ impl Player {
                     .collect::<Vec<String>>()
             })
             .collect::<Vec<Vec<String>>>();
+            entiers.pop();
+        print!("choose: \n");
         for (i, v) in entiers.iter().enumerate() {
             println!("[{i}] {}", *v.get(0).unwrap_or(&"".to_string()))
         }
@@ -266,7 +268,7 @@ impl Player {
         p.kill()?;
 
         let b = url.to_string();
-        println!("{b}");
+        println!("running: {b}");
 
         p.start(Some(b))?;
 
