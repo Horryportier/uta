@@ -260,8 +260,8 @@ impl Player {
         };
 
         let final_choice = choice()?;
-
-        let url = entiers.get(final_choice).unwrap().get(1).unwrap();
+            
+        let url = entiers.get(final_choice-1).unwrap().get(1).unwrap();
 
         let p = self;
 

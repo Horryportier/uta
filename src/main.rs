@@ -37,6 +37,6 @@ fn main() {
     let res = arg_menager.execute();
     match res {
         Ok(_) => info!("App exeucted without issues"),
-        Err(err) => error!("App failed at {:?}", err),
+        Err(err) => error!("App failed at {}", err),
     }
 }
