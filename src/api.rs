@@ -1,5 +1,6 @@
-use std::{fs, io::stdin, process::Command, sync::Mutex};
+use std::{fs, io::{stdin, stdout}, process::Command, sync::Mutex};
 
+use crossterm::{ExecutableCommand, terminal::{EnterAlternateScreen, LeaveAlternateScreen}};
 use mpvipc::{Mpv, SeekOptions};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -100,34 +101,33 @@ impl Player {
     }
 
     pub fn print(&self) -> Result<(), Error> {
-        let curr: f64 = self
-            .mpv
-            .lock()
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .get_property("playback-time")
-            .unwrap_or(0.)
-            .floor();
-        let len: f64 = self
-            .mpv
-            .lock()
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .get_property("duration")
-            .unwrap_or(100.)
-            .floor();
+        let curr = match self.mpv.lock().unwrap().as_ref() {
+            Some(m) => match m.get_property::<f64>("playback-time") {
+                Ok(f) => f,
+                Err(..) => 100.,
+            },
+            None => 100.,
+        }
+        .floor();
+
+        let len = match self.mpv.lock().unwrap().as_ref() {
+            Some(m) => match m.get_property::<f64>("duration") {
+                Ok(f) => f,
+                Err(..) => 100.,
+            },
+            None => 100.,
+        }
+        .floor();
+
         let procent = ((curr / len) * 100.).floor();
-        let text = format!(
-            "{procent}/100% | {}",
-            self.mpv
-                .lock()
-                .unwrap()
-                .as_ref()
-                .unwrap()
-                .get_property::<String>("media-title")?
-        );
+        let name = match self.mpv.lock().unwrap().as_ref() {
+            Some(m) => match m.get_property::<String>("media-title") {
+                Ok(f) => f,
+                Err(..) => "none".into(),
+            },
+            None => "none".into(),
+        };
+        let text = format!("{procent}/100 | {name}");
         println!("{}", text);
         Ok(())
     }
@@ -244,6 +244,8 @@ impl Player {
             })
             .collect::<Vec<Vec<String>>>();
         entiers.pop();
+
+        stdout().execute(EnterAlternateScreen)?;
         print!("choose: \n");
         for (i, v) in entiers.iter().enumerate() {
             println!("[{}] {}", i + 1, *v.get(0).unwrap_or(&"".to_string()))
@@ -260,8 +262,8 @@ impl Player {
         };
 
         let final_choice = choice()?;
-            
-        let url = entiers.get(final_choice-1).unwrap().get(1).unwrap();
+
+        let url = entiers.get(final_choice - 1).unwrap().get(1).unwrap();
 
         let p = self;
 
@@ -269,6 +271,7 @@ impl Player {
 
         let b = url.to_string();
         println!("running: {b}");
+        stdout().execute(LeaveAlternateScreen)?;
 
         p.start(Some(b))?;
 
