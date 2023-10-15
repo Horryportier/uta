@@ -11,7 +11,6 @@ extern crate log;
 mod api;
 mod args;
 mod env;
-mod tui;
 mod utils;
 
 #[derive(Debug, Error)]
