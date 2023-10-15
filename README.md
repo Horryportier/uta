@@ -14,7 +14,7 @@ cargo install --path .
 
 ```
 # Usage 
-run `uta URL/PATH` to start `-t` to pause/unpause `-n/p` to switch `-h` for help `-h [any flag]` help for flgas.
+run `uta URL/PATH` to start `-t` to pause/unpause `-n/p` to switch `-h` for help. 
 ## env variable
 - `UTA_VOLUME=50` set default volume 
 - `UTA_VIDEO=true` if set to `true` mpv will lunch with video. when not set will default to `false` 
@@ -29,5 +29,4 @@ set -g status-interval 1
 
 # show our widget
 set -g status-right ' #(uta --print)'
-
 ```
