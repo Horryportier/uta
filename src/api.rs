@@ -1,7 +1,15 @@
-use std::{fs, io::{stdin, stdout}, process::Command, sync::Mutex};
+use std::{
+    fs,
+    io::{stdin, stdout},
+    process::Command,
+    sync::Mutex,
+};
 
-use crossterm::{ExecutableCommand, terminal::{EnterAlternateScreen, LeaveAlternateScreen}};
-use mpvipc::{Mpv, SeekOptions};
+use crossterm::{
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
+    ExecutableCommand,
+};
+use mpvipc::{ipc::PlaylistEntry, Mpv, SeekOptions};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_partial::SerializePartial;
@@ -180,7 +188,8 @@ impl Player {
             .set_volume(volume, mpvipc::NumberChangeOptions::Absolute)?;
         Ok(())
     }
-    pub fn get_volume(&self) -> Result<(), Error> {
+
+    pub fn print_volume(&self) -> Result<(), Error> {
         let volume: f64 = self
             .mpv
             .lock()
@@ -190,6 +199,18 @@ impl Player {
             .get_property("volume")?;
         println!("{volume}");
         Ok(())
+    }
+
+    pub fn get_playlist_info(&self) -> Result<Vec<PlaylistEntry>, Error> {
+        let playlist = self
+            .mpv
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .get_property::<Vec<PlaylistEntry>>("playlist")?;
+
+        Ok(playlist)
     }
 
     pub fn downland(&self, opt_url: Option<&str>) -> Result<(), Error> {
