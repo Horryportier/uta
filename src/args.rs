@@ -2,9 +2,20 @@ use std::{thread, time::Duration, env::args};
 
 use clap::Parser;
 
-use crate::{api::Player, Error};
+const  LONG_ABOUT: &str = r#"
+uta is mpv wrapper specialized in being youtube music player. 
 
+Env Vars:
+
+UTA_VOLUME=<0-100>      uta default volume is set to 50.
+UTA_VIDEO=true/false    set to false by default.
+UTA_DOWNLAND=<args>     var to specify yt-dlp args like safe path etc.
+"#;
+
+use crate::{api::Player, Error};
+///uta is mpv wrapper specialized in being youtube music player 
 #[derive(Debug, Parser, Default)]
+#[command(author="Horyyportier", version,long_about=Some(LONG_ABOUT))]
 pub struct Args {
     /// link to youtube video/playlist
     #[arg(short, long)]

@@ -29,7 +29,6 @@ pub struct Data {
 }
 
 impl Player {
-    /// path or youtube link
     pub fn new() -> Result<Player, mpvipc::Error> {
         let socket = "/tmp/mpvsocket";
 
@@ -201,6 +200,7 @@ impl Player {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn get_playlist_info(&self) -> Result<Vec<PlaylistEntry>, Error> {
         let playlist = self
             .mpv
