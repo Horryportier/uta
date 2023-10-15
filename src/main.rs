@@ -1,15 +1,18 @@
-use std::{env::args, io, string::FromUtf8Error, num::ParseIntError};
+use std::{io, num::ParseIntError, string::FromUtf8Error};
 
-use args::ArgsManger;
+use clap::Parser;
 use thiserror::Error;
+
+use crate::args::Args;
 
 #[macro_use]
 extern crate log;
 
 mod api;
 mod args;
-mod utils;
 mod env;
+mod tui;
+mod utils;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -24,19 +27,15 @@ pub enum Error {
     #[error("utf8 error: {0}")]
     UtfErr(#[from] FromUtf8Error),
     #[error("parse int error:  {0}")]
-    IntErr(#[from] ParseIntError)
+    IntErr(#[from] ParseIntError),
 }
 
 fn main() {
     pretty_env_logger::init();
+    let mut args = Args::parse();
 
-    let args = args().collect::<Vec<String>>();
-    let args = &args[1..];
-    let arg_menager = ArgsManger::new(&args.to_vec());
-    info!("{:?}", arg_menager.args);
-    let res = arg_menager.execute();
-    match res {
-        Ok(_) => info!("App exeucted without issues"),
-        Err(err) => error!("App failed at {}", err),
+    match args.execute()  {
+        Ok(_) => {},
+        Err(e) => error!("uta failed at: {}", e)
     }
 }
