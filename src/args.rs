@@ -1,8 +1,8 @@
-use std::{thread, time::Duration, env::args};
+use std::{env::args, thread, time::Duration};
 
 use clap::Parser;
 
-const  LONG_ABOUT: &str = r#"
+const LONG_ABOUT: &str = r#"
 uta is mpv wrapper specialized in being youtube music player. 
 
 Env Vars:
@@ -13,7 +13,7 @@ UTA_DOWNLAND=<args>     var to specify yt-dlp args like safe path etc.
 "#;
 
 use crate::{api::Player, Error};
-///uta is mpv wrapper specialized in being youtube music player 
+///uta is mpv wrapper specialized in being youtube music player
 #[derive(Debug, Parser, Default)]
 #[command(author="Horyyportier", version,long_about=Some(LONG_ABOUT))]
 pub struct Args {
@@ -23,7 +23,7 @@ pub struct Args {
     /// jump to timestamp in video by procantage
     #[arg(short, long)]
     seek: Option<f64>,
-    /// change volume 
+    /// change volume
     #[arg(short, long)]
     volume: Option<f64>,
     /// prints volume
@@ -48,7 +48,7 @@ pub struct Args {
     #[arg(long)]
     loop_single: bool,
     /// jumps to random entry in the playlist
-    #[arg(long)]
+    #[arg(short, long)]
     rand: bool,
     /// dowlands current video
     #[arg(long)]
@@ -66,7 +66,11 @@ impl Args {
 
         match &self.link {
             Some(link) => player.data.url = Some(link.into()),
-            None => { if args().len() == 1 {  player.chose_from_list()? } } ,
+            None => {
+                if args().len() == 1 {
+                    player.chose_from_list()?
+                }
+            }
         }
 
         if player.data.url.is_some() {
@@ -76,27 +80,49 @@ impl Args {
 
         match self.seek {
             Some(seek) => player.seek(seek, mpvipc::SeekOptions::Absolute)?,
-            None => {}, 
+            None => {}
         }
 
         match self.volume {
             Some(volume) => player.volume(volume)?,
-            None => {},
+            None => {}
         }
 
-        if self.p_volume { player.print_volume()? }
+        if self.p_volume {
+            player.print_volume()?
+        }
 
-        if self.kill { player.kill()? }
-        if self.next { player.next()? }
-        if self.prev { player.prev()? }
-        if self.toogle { player.toggle()? }
-        if self.loop_playlist { player.loop_playlist()? } 
-        if self.loop_single { player.loop_single()? } 
-        if self.rand  { player.rand()? } 
+        if self.kill {
+            player.kill()?
+        }
+        if self.next {
+            player.next()?
+        }
+        if self.prev {
+            player.prev()?
+        }
+        if self.toogle {
+            player.toggle()?
+        }
+        if self.loop_playlist {
+            player.loop_playlist()?
+        }
+        if self.loop_single {
+            player.loop_single()?
+        }
+        if self.rand {
+            player.rand()?
+        }
 
-        if self.downland { player.downland(None)? }
-        if self.runnig { println!("{}", player.is_paused()?) }
-        if self.print { player.print()? }
+        if self.downland {
+            player.downland(None)?
+        }
+        if self.runnig {
+            println!("{}", player.is_paused()?)
+        }
+        if self.print {
+            player.print()?
+        }
 
         Ok(())
     }
