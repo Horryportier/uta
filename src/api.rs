@@ -108,6 +108,19 @@ impl Player {
     }
 
     pub fn print(&self) -> Result<(), Error> {
+        let name = match self.mpv.lock().unwrap().as_ref() {
+            Some(m) => match m.get_property::<String>("media-title") {
+                Ok(f) => f,
+                Err(..) => "none".into(),
+            },
+            None => "none".into(),
+        };
+        let text = format!("{name}");
+        println!("{}", text);
+        Ok(())
+    }
+
+    pub fn get_procentage(&self) -> Result<f64, Error> {
         let curr = match self.mpv.lock().unwrap().as_ref() {
             Some(m) => match m.get_property::<f64>("playback-time") {
                 Ok(f) => f,
@@ -126,19 +139,8 @@ impl Player {
         }
         .floor();
 
-        let procent = ((curr / len) * 100.).floor();
-        let name = match self.mpv.lock().unwrap().as_ref() {
-            Some(m) => match m.get_property::<String>("media-title") {
-                Ok(f) => f,
-                Err(..) => "none".into(),
-            },
-            None => "none".into(),
-        };
-        let text = format!("{procent}/100 | {name}");
-        println!("{}", text);
-        Ok(())
+        Ok(((curr / len) * 100.).floor())
     }
-
     pub fn loop_single(&self) -> Result<(), Error> {
         self.mpv
             .lock()

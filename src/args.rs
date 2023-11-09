@@ -29,6 +29,9 @@ pub struct Args {
     /// prints volume
     #[arg(long)]
     p_volume: bool,
+    /// prints percentage of the video
+    #[arg(long)]
+    percentage: bool,
     /// kill's mpv process
     #[arg(short, long)]
     kill: bool,
@@ -122,6 +125,9 @@ impl Args {
         }
         if self.print {
             player.print()?
+        }
+        if self.percentage {
+            print!("{}",player.get_procentage()? as usize)
         }
 
         Ok(())
