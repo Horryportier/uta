@@ -85,7 +85,7 @@ impl Args {
         }
 
         match self.seek {
-            Some(seek) => player.seek(seek, mpvipc::SeekOptions::Absolute)?,
+            Some(seek) => player.seek(seek, mpvipc::SeekOptions::AbsolutePercent)?,
             None => {}
         }
 
