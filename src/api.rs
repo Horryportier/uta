@@ -1,5 +1,5 @@
 use std::{
-    fs,
+    fs::{self},
     io::{stdin, stdout},
     process::Command,
     sync::Mutex,
@@ -105,6 +105,27 @@ impl Player {
             .as_ref()
             .unwrap()
             .get_property::<bool>("pause")?)
+    }
+
+    // https://i.ytimg.com/vi/t0zooRIpAe4/hqdefault.jpg
+    pub fn safe_thumbnail(&self, safe_path: String) -> Result<(), Error> {
+        let url = self
+            .mpv
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .get_property_string("path")
+            .map_err(|e| eprintln!("{}", e)).unwrap();
+        let id = url.split("watch?v=").last();
+        let final_url = format!("https://i.ytimg.com/vi/{}/hqdefault.jpg", id.unwrap_or("dQw4w9WgXcQ"));
+
+        let img_bytes  = reqwest::blocking::get(final_url.clone())?.bytes()?;
+        let img = image::load_from_memory(&img_bytes)?;
+        let img_type = image::guess_format(&img_bytes)?;
+        println!("{:?}", img_type);
+        img.save_with_format(safe_path, img_type)?;
+        Ok(())
     }
 
     pub fn print(&self) -> Result<(), Error> {

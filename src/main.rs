@@ -27,6 +27,10 @@ pub enum Error {
     UtfErr(#[from] FromUtf8Error),
     #[error("parse int error:  {0}")]
     IntErr(#[from] ParseIntError),
+    #[error("reqwest error:  {0}")]
+    ReqwestErr(#[from] reqwest::Error),
+    #[error("image error:  {0}")]
+    ImageErr(#[from] image::ImageError),
 }
 
 fn main() {

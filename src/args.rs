@@ -61,6 +61,9 @@ pub struct Args {
     /// prints current running video title
     #[arg(long)]
     print: bool,
+    /// saves thumbnail at said path if not provided will save at curr dir
+    #[arg(long)]
+    thumbnail: Option<String>,
 }
 
 impl Args {
@@ -125,6 +128,10 @@ impl Args {
         }
         if self.print {
             player.print()?
+        }
+        match &self.thumbnail {
+            Some(th) =>  player.safe_thumbnail(th.into())?,
+            None =>  ()
         }
         if self.percentage {
             print!("{}",player.get_procentage()? as usize)
