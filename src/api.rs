@@ -127,6 +127,19 @@ impl Player {
         img.save_with_format(safe_path, img_type)?;
         Ok(())
     }
+    
+    pub fn get_link(&self) -> Result<(), Error> {
+        let url = self
+            .mpv
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .get_property_string("path")?;
+
+        println!("{url}");
+        Ok(())
+    }
 
     pub fn print(&self) -> Result<(), Error> {
         let name = match self.mpv.lock().unwrap().as_ref() {

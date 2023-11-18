@@ -64,6 +64,9 @@ pub struct Args {
     /// saves thumbnail at said path if not provided will save at curr dir
     #[arg(long)]
     thumbnail: Option<String>,
+    /// prints link to current track
+    #[arg(long)]
+    get_link: bool, 
 }
 
 impl Args {
@@ -135,6 +138,9 @@ impl Args {
         }
         if self.percentage {
             print!("{}",player.get_procentage()? as usize)
+        }
+        if self.get_link {
+            player.get_link()?
         }
 
         Ok(())
