@@ -1,7 +1,8 @@
 use std::{
+    env,
     fs::{self},
-    io::{stdin, stdout},
-    process::Command,
+    io::{stdin, stdout, Read},
+    process::{Command, Stdio},
     sync::Mutex,
 };
 
@@ -116,18 +117,22 @@ impl Player {
             .as_ref()
             .unwrap()
             .get_property_string("path")
-            .map_err(|e| eprintln!("{}", e)).unwrap();
+            .map_err(|e| eprintln!("{}", e))
+            .unwrap();
         let id = url.split("watch?v=").last();
-        let final_url = format!("https://i.ytimg.com/vi/{}/hqdefault.jpg", id.unwrap_or("dQw4w9WgXcQ"));
+        let final_url = format!(
+            "https://i.ytimg.com/vi/{}/hqdefault.jpg",
+            id.unwrap_or("dQw4w9WgXcQ")
+        );
 
-        let img_bytes  = reqwest::blocking::get(final_url.clone())?.bytes()?;
+        let img_bytes = reqwest::blocking::get(final_url.clone())?.bytes()?;
         let img = image::load_from_memory(&img_bytes)?;
         let img_type = image::guess_format(&img_bytes)?;
         println!("{:?}", img_type);
         img.save_with_format(safe_path, img_type)?;
         Ok(())
     }
-    
+
     pub fn get_link(&self) -> Result<(), Error> {
         let url = self
             .mpv
@@ -280,58 +285,118 @@ impl Player {
     }
 
     pub fn chose_from_list(&self) -> Result<(), Error> {
-        let list_file = match option_env!("UTA_LIST_FILE") {
-            None => "",
-            Some(l) => l,
-        };
-        if list_file == "" {
-            return Ok(());
+        let url: Option<String>;
+        if is_program_in_path("fzf") {
+            url = fzf_find()?;
+        } else {
+            url = num_choice()?;
         }
 
-        let file = String::from_utf8(fs::read(list_file)?)?;
+        self.kill()?;
 
-        let lines = file.split("\n").collect::<Vec<&str>>();
-        let mut entiers = lines
-            .iter()
-            .map(|f| {
-                f.split(" ")
-                    .take(2)
-                    .map(|f| f.to_string())
-                    .collect::<Vec<String>>()
-            })
-            .collect::<Vec<Vec<String>>>();
-        entiers.pop();
-
-        stdout().execute(EnterAlternateScreen)?;
-        print!("choose: \n");
-        for (i, v) in entiers.iter().enumerate() {
-            println!("[{}] {}", i + 1, *v.get(0).unwrap_or(&"".to_string()))
-        }
-
-        let choice = || -> Result<usize, std::num::ParseIntError> {
-            let mut input_string = String::new();
-            stdin()
-                .read_line(&mut input_string)
-                .ok()
-                .expect("Failed to read line");
-
-            input_string.trim().parse::<usize>()
-        };
-
-        let final_choice = choice()?;
-
-        let url = entiers.get(final_choice - 1).unwrap().get(1).unwrap();
-
-        let p = self;
-
-        p.kill()?;
-
-        let b = url.to_string();
+        let b = url.ok_or(Error::ExecuteErr("Could not retrive url from file".into()))?;
         println!("running: {b}");
         stdout().execute(LeaveAlternateScreen)?;
 
-        p.start(Some(b))?;
+        self.start(Some(b))?;
 
         Ok(())
     }
+}
+/// called when fzf not in path will list all playlist and prompt for number 
+fn num_choice() -> Result<Option<String>, Error> {
+    let list_file = match option_env!("UTA_LIST_FILE") {
+        None => "",
+        Some(l) => l,
+    };
+    if list_file == "" {
+        return Ok(None);
+    }
+
+    let file = String::from_utf8(fs::read(list_file)?)?;
+
+    let lines = file.split("\n").collect::<Vec<&str>>();
+    let mut entiers = lines
+        .iter()
+        .map(|f| {
+            f.split(" ")
+                .take(2)
+                .map(|f| f.to_string())
+                .collect::<Vec<String>>()
+        })
+        .collect::<Vec<Vec<String>>>();
+    entiers.pop();
+
+    stdout().execute(EnterAlternateScreen)?;
+    print!("choose: \n");
+    for (i, v) in entiers.iter().enumerate() {
+        println!("[{}] {}", i + 1, *v.get(0).unwrap_or(&"".to_string()))
+    }
+
+    let choice = || -> Result<usize, std::num::ParseIntError> {
+        let mut input_string = String::new();
+        stdin()
+            .read_line(&mut input_string)
+            .ok()
+            .expect("Failed to read line");
+
+        input_string.trim().parse::<usize>()
+    };
+
+    let final_choice = choice()?;
+    Ok(Some(
+        entiers
+            .get(final_choice - 1)
+            .unwrap()
+            .get(1)
+            .unwrap()
+            .into(),
+    ))
+}
+
+fn is_program_in_path(program: &str) -> bool {
+    if let Ok(path) = env::var("PATH") {
+        for p in path.split(":") {
+            let p_str = format!("{}/{}", p, program);
+            if fs::metadata(p_str).is_ok() {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// function calls fzf and returns url
+fn fzf_find() -> Result<Option<String>, Error> {
+    let list_file = match option_env!("UTA_LIST_FILE") {
+        None => "",
+        Some(l) => l,
+    };
+    if list_file == "" {
+        return Ok(None);
+    }
+    let file: std::fs::File = fs::File::open(list_file)?;
+    let mut cmd = Command::new("fzf")
+        .stdin::<std::fs::File>(file.into())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    cmd.wait()?;
+
+    let mut fzf_output = String::new();
+    match cmd.stdout {
+        None => return Err(Error::ExecuteErr("no stdout".into())),
+        Some(ref mut out) => {
+            let _ = out.read_to_string(&mut fzf_output)?;
+            info!("{}", fzf_output)
+        }
+    }
+    let url = fzf_output
+        .split(" ")
+        .into_iter()
+        .last()
+        .ok_or(Error::ExecuteErr(
+            "Could not extract url from list cheak\n if file is in correct format".into(),
+        ))?;
+
+    return Ok(Some(url.into()));
 }
