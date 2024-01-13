@@ -1,6 +1,22 @@
 use std::{env::args, thread, time::Duration};
+use crossterm::style::Stylize;
 
 use clap::Parser;
+
+macro_rules! if_arg {
+    ($bool:expr, $msg:literal, $fun:expr) => {
+        if $bool {
+            println!("{}", $msg.cyan());
+            $fun;
+            println!("{}", "succes".green());
+        }
+    };
+    ($bool:expr, $fun:expr) => {
+        if $bool {
+            $fun;
+        }
+    };
+}
 
 const LONG_ABOUT: &str = r#"
 uta is mpv wrapper specialized in being youtube music player. 
@@ -66,7 +82,7 @@ pub struct Args {
     thumbnail: Option<String>,
     /// prints link to current track
     #[arg(long)]
-    get_link: bool, 
+    get_link: bool,
 }
 
 impl Args {
@@ -82,10 +98,10 @@ impl Args {
             }
         }
 
-        if player.data.url.is_some() {
+        if_arg!(player.data.url.is_some(), {
             player.start(None)?;
-            thread::sleep(Duration::from_secs(1));
-        }
+            thread::sleep(Duration::from_secs(1))
+        });
 
         match self.seek {
             Some(seek) => player.seek(seek, mpvipc::SeekOptions::AbsolutePercent)?,
@@ -97,50 +113,44 @@ impl Args {
             None => {}
         }
 
-        if self.p_volume {
-            player.print_volume()?
-        }
+        if_arg!(self.kill, "killing current instance of mpv", player.kill()?);
 
-        if self.kill {
-            player.kill()?
-        }
-        if self.next {
-            player.next()?
-        }
-        if self.prev {
-            player.prev()?
-        }
-        if self.toogle {
-            player.toggle()?
-        }
-        if self.loop_playlist {
+        if_arg!(self.next, "playing next entry in playlist", player.next()?);
+        if_arg!(self.prev, "playing prev entry in playlist", player.prev()?);
+        if_arg!(self.toogle, "toogle player on/off", player.toggle()?);
+        if_arg!(
+            self.loop_playlist,
+            "looping playlist",
             player.loop_playlist()?
-        }
-        if self.loop_single {
+        );
+        if_arg!(
+            self.loop_single,
+            "looping current entry",
             player.loop_single()?
-        }
-        if self.rand {
+        );
+        if_arg!(
+            self.rand,
+            "jumping to random entry in playlist",
             player.rand()?
-        }
+        );
+        if_arg!(self.p_volume, player.print_volume()?);
 
-        if self.downland {
+        if_arg!(
+            self.downland,
+            "dowlandnig current entry",
             player.downland(None)?
-        }
-        if self.runnig {
-            println!("{}", player.is_paused()?)
-        }
-        if self.print {
-            player.print()?
-        }
+        );
+        if_arg!(self.runnig, println!("{}", player.is_paused()?));
+        if_arg!(self.print, player.print()?);
+        if_arg!(
+            self.percentage,
+            print!("{}", player.get_procentage()? as usize)
+        );
+        if_arg!(self.get_link, player.get_link()?);
+
         match &self.thumbnail {
-            Some(th) =>  player.safe_thumbnail(th.into())?,
-            None =>  ()
-        }
-        if self.percentage {
-            print!("{}",player.get_procentage()? as usize)
-        }
-        if self.get_link {
-            player.get_link()?
+            Some(th) => player.safe_thumbnail(th.into())?,
+            None => (),
         }
 
         Ok(())
