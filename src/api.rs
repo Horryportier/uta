@@ -13,7 +13,7 @@ use crossterm::{
 };
 use mpvipc::{ipc::PlaylistEntry, Mpv, SeekOptions};
 use rand::Rng;
-use serde::{de::value, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_partial::SerializePartial;
 
 use crate::{env::get_env_mpv_args, Error};
