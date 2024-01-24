@@ -1,5 +1,6 @@
 use std::{
-    env,
+    env::{self},
+    fmt::Display,
     fs::{self},
     io::{stdin, stdout, Read},
     process::{Command, Stdio},
@@ -12,7 +13,7 @@ use crossterm::{
 };
 use mpvipc::{ipc::PlaylistEntry, Mpv, SeekOptions};
 use rand::Rng;
-use serde::{Deserialize, Serialize};
+use serde::{de::value, Deserialize, Serialize};
 use serde_partial::SerializePartial;
 
 use crate::{env::get_env_mpv_args, Error};
@@ -27,6 +28,36 @@ pub struct Player {
 pub struct Data {
     pub mpv_args: Vec<String>,
     pub url: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq, Default)]
+enum ChoiceOptions {
+    ROFI,
+    FZF,
+    #[default]
+    NUM,
+}
+
+impl Display for ChoiceOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Self::ROFI => "rofi",
+            Self::FZF => "fzf",
+            Self::NUM => "num",
+        };
+        write!(f, "{str}")
+    }
+}
+
+impl From<String> for ChoiceOptions {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "fzf" => Self::FZF,
+            "rofi" => Self::ROFI,
+            "num" => Self::NUM,
+            _ => Self::default(),
+        }
+    }
 }
 
 impl Player {
@@ -286,11 +317,30 @@ impl Player {
 
     pub fn chose_from_list(&self) -> Result<(), Error> {
         let url: Option<String>;
-        if is_program_in_path("fzf") {
-            url = fzf_find()?;
-        } else {
-            url = num_choice()?;
-        }
+
+        let choice_prog: ChoiceOptions = option_env!("UTA_CHOICE_PROG")
+            .unwrap_or_default()
+            .to_string()
+            .into();
+
+        (url, _) = match choice_prog {
+            ChoiceOptions::ROFI => {
+                if !is_program_in_path("rofi") {
+                    num_choice()?
+                } else {
+                    rofi_find()?
+                }
+            }
+            ChoiceOptions::FZF => {
+                if !is_program_in_path("fzf") {
+                    num_choice()?
+                } else {
+                    fzf_find()?
+                }
+            }
+
+            ChoiceOptions::NUM => num_choice()?,
+        };
 
         self.kill()?;
 
@@ -299,19 +349,24 @@ impl Player {
         stdout().execute(LeaveAlternateScreen)?;
 
         self.start(Some(b))?;
+        //if let Some(opts) = options {
+        //    let mut args = Args::default();
+        //    args.update(opts);
+        //    args.execute()?;
+        //}
 
         Ok(())
     }
 }
-/// called when fzf not in path will list all playlist and prompt for number 
-fn num_choice() -> Result<Option<String>, Error> {
-    let list_file = match option_env!("UTA_LIST_FILE") {
-        None => "",
-        Some(l) => l,
-    };
-    if list_file == "" {
-        return Ok(None);
-    }
+fn get_list_file() -> Result<&'static str, Error> {
+    Ok(option_env!("UTA_LIST_FILE").ok_or(Error::ExecuteErr(
+        "Env value UTA_LIST_FILE is not set".into(),
+    ))?)
+}
+
+/// called when fzf not in path will list all playlist and prompt for number
+fn num_choice() -> Result<(Option<String>, Option<Vec<String>>), Error> {
+    let list_file = get_list_file()?;
 
     let file = String::from_utf8(fs::read(list_file)?)?;
 
@@ -344,13 +399,16 @@ fn num_choice() -> Result<Option<String>, Error> {
     };
 
     let final_choice = choice()?;
-    Ok(Some(
-        entiers
-            .get(final_choice - 1)
-            .unwrap()
-            .get(1)
-            .unwrap()
-            .into(),
+    Ok((
+        Some(
+            entiers
+                .get(final_choice - 1)
+                .unwrap()
+                .get(1)
+                .unwrap()
+                .into(),
+        ),
+        None,
     ))
 }
 
@@ -367,14 +425,8 @@ fn is_program_in_path(program: &str) -> bool {
 }
 
 /// function calls fzf and returns url
-fn fzf_find() -> Result<Option<String>, Error> {
-    let list_file = match option_env!("UTA_LIST_FILE") {
-        None => "",
-        Some(l) => l,
-    };
-    if list_file == "" {
-        return Ok(None);
-    }
+fn fzf_find() -> Result<(Option<String>, Option<Vec<String>>), Error> {
+    let list_file = get_list_file()?;
     let file: std::fs::File = fs::File::open(list_file)?;
     let mut cmd = Command::new("fzf")
         .stdin::<std::fs::File>(file.into())
@@ -390,13 +442,62 @@ fn fzf_find() -> Result<Option<String>, Error> {
             info!("{}", fzf_output)
         }
     }
-    let url = fzf_output
-        .split(" ")
-        .into_iter()
-        .last()
-        .ok_or(Error::ExecuteErr(
-            "Could not extract url from list cheak\n if file is in correct format".into(),
-        ))?;
+    let mut split = fzf_output.split(" ");
+    //println!("{}", split.clone().count());
+    match split.clone().count() {
+        x if x < 2 => {
+            return Err(Error::ExecuteErr(
+                "Not enough values in playlist entry".into(),
+            ))
+        }
+        x if x >= 2 => {
+            let _ = split.next();
+            let url = split.next();
+            let options = split.map(|f| f.to_string()).collect::<Vec<String>>();
+            return Ok((
+                Some(url.ok_or(Error::ExecuteErr("url is empty".into()))?.into()),
+                Some(options),
+            ));
+        }
+        _ => return Err(Error::ExecuteErr("Inposible error".into())),
+    }
+}
 
-    return Ok(Some(url.into()));
+fn rofi_find() -> Result<(Option<String>, Option<Vec<String>>), Error> {
+    let list_file = get_list_file()?;
+    let file: std::fs::File = fs::File::open(list_file)?;
+    let mut cmd = Command::new("rofi")
+        .arg("-dmenu")
+        .stdin::<std::fs::File>(file.into())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    cmd.wait()?;
+
+    let mut rofi_output = String::new();
+    match cmd.stdout {
+        None => return Err(Error::ExecuteErr("no stdout".into())),
+        Some(ref mut out) => {
+            let _ = out.read_to_string(&mut rofi_output)?;
+            info!("{}", rofi_output)
+        }
+    }
+    let mut split = rofi_output.split(" ");
+    //println!("{}", split.clone().count());
+    match split.clone().count() {
+        x if x < 2 => {
+            return Err(Error::ExecuteErr(
+                "Not enough values in playlist entry".into(),
+            ))
+        }
+        x if x >= 2 => {
+            let _ = split.next();
+            let url = split.next();
+            let options = split.map(|f| f.to_string()).collect::<Vec<String>>();
+            return Ok((
+                Some(url.ok_or(Error::ExecuteErr("url is empty".into()))?.into()),
+                Some(options),
+            ));
+        }
+        _ => return Err(Error::ExecuteErr("Inposible error".into())),
+    }
 }

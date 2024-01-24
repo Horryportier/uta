@@ -22,10 +22,11 @@ const LONG_ABOUT: &str = r#"
 uta is mpv wrapper specialized in being youtube music player. 
 
 Env Vars:
-
+UTA_LIST_FILE=/path/to/your/playlists 
 UTA_VOLUME=<0-100>      uta default volume is set to 50.
 UTA_VIDEO=true/false    set to false by default.
 UTA_DOWNLAND=<args>     var to specify yt-dlp args like safe path etc.
+UTA_CHOICE_PROG=rofi|fzf|num    choice engine defoults to simple [num] choices
 "#;
 
 use crate::{api::Player, Error};
@@ -86,6 +87,9 @@ pub struct Args {
 }
 
 impl Args {
+    pub fn update(&mut self, opts: Vec<String>) { 
+        self.update_from(opts);
+    }
     pub fn execute(&mut self) -> Result<(), Error> {
         let mut player = Player::new()?;
 
@@ -109,7 +113,11 @@ impl Args {
         }
 
         match self.volume {
-            Some(volume) => player.volume(volume)?,
+            Some(volume) =>  { 
+                println!("{} {}", "setting volume to".cyan(), volume.to_string().red());
+                player.volume(volume)?;
+                println!("{}", "succes".green());
+            }
             None => {}
         }
 
